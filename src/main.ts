@@ -89,6 +89,28 @@ export default class PrintMeChecksPlugin extends Plugin {
     return cmp !== null && cmp > 0 ? fromRegister : own
   }
 
+  // A check number already in the register for this account (any status,
+  // including Void). Matched by account id, or by last four digits for entries
+  // saved without one.
+  findExisting (a: Account, checkNumber: string) {
+    const n = checkNumber.trim()
+    if (!n) return undefined
+    return this.store.entries.find(e => e.checkNumber.trim() === n &&
+      (e.accountId ? e.accountId === a.id : e.accountLast4 === last4(a.accountNumber)))
+  }
+
+  // Typing an existing check number pulls up that check instead of starting a
+  // duplicate. Called when the field loses focus with a changed number.
+  lookupCheckNumber (previous: string) {
+    const n = this.check.checkNumber.trim()
+    const a = this.accounts.active
+    if (!n || !a || n === previous.trim()) return
+    const e = this.findExisting(a, n)
+    if (!e) return
+    this.setCheck({ checkNumber: e.checkNumber, date: e.date, payTo: e.payTo, amount: e.amount, memo: e.memo })
+    new Notice(`Check #${n} is already in the register (${e.status || 'Issued'}). Loaded it. To correct it, void it in the register and make a new check.`)
+  }
+
   async saveCheckToRegister () {
     const a = this.accounts.active
     if (!a) return new Notice('Add a bank account first.')
@@ -97,6 +119,9 @@ export default class PrintMeChecksPlugin extends Plugin {
       return this.openSettings()
     }
     const c = this.check
+    if (this.findExisting(a, c.checkNumber)) {
+      return new Notice(`Check #${c.checkNumber} is already in the register for this account, so it was not saved again. Void it in the register, or change the check number.`)
+    }
     try {
       await this.store.add({
         date: c.date,

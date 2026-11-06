@@ -340,7 +340,13 @@ export class CheckEditorView extends ItemView {
     const s2 = d.createDiv('pmc-sect-box')
     s2.createEl('h6', { text: 'Check' })
     const grid = s2.createDiv('pmc-grid2')
-    this.field(grid, 'Check #', this.check.checkNumber, v => this.plugin.setCheck({ checkNumber: v }, true))
+    const numWrap = this.field(grid, 'Check #', this.check.checkNumber, v => this.plugin.setCheck({ checkNumber: v }, true))
+    const numInput = numWrap.querySelector('input')
+    if (numInput) {
+      let numberOnFocus = ''
+      numInput.addEventListener('focus', () => { numberOnFocus = this.check.checkNumber })
+      numInput.addEventListener('change', () => this.plugin.lookupCheckNumber(numberOnFocus))
+    }
     const dateWrap = this.field(grid, 'Date', this.check.date, v => this.plugin.setCheck({ date: v }, true))
     const today = dateWrap.createEl('button', { cls: 'pmc-small', attr: { 'aria-label': 'Today' } })
     setIcon(today, 'calendar-check')
