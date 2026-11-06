@@ -1,6 +1,6 @@
 {
   "name": "obsidian-printmechecks",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Obsidian plugin for the Print Me Checks register",
   "main": "main.js",
   "scripts": {

@@ -105,7 +105,10 @@ export class PrintPreviewModal extends Modal {
     const canvas = createEl('canvas')
     canvas.width = vp.width
     canvas.height = vp.height
+    // Fixed display size with the page's true proportions (the canvas must
+    // never be stretched or squashed by its container)
     canvas.style.width = width + 'px'
+    canvas.style.height = Math.round(width * base.height / base.width) + 'px'
     await p.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
     el.empty()
     el.appendChild(canvas)
