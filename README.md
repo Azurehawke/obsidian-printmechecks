@@ -6,6 +6,22 @@ app, on desktop and mobile.
 
 ## Features
 
+- **Write and print checks**, just like the desktop app (*Write a check*
+  command or the pen icon in the ribbon). Ribbon tabs (Home, Text, Layout,
+  Accounts), a tool rail, the check itself, and a details panel:
+  - Saved bank accounts, each with its own next check number in any format
+    (`100`, `100-0001`, …). Numbering continues from the register, so checks
+    saved from the desktop app on another computer are accounted for.
+  - One font and size for the whole check; move any field with the arrow keys;
+    shift the whole check to line up with your printer.
+  - **Print…** opens a preview of the exact page, then the Windows print
+    dialog. **Save PDF** saves the check into the vault (Settings → PDF
+    folder) or anywhere you choose.
+  - **Save to Register** adds the check to the `.xlsx` register.
+  - The printed page is identical to the desktop app's, so alignment on your
+    check stock carries over.
+  - Printing needs Obsidian on a computer; on mobile you can still fill in
+    checks and save them to the register.
 - **Check register view.** All your checks in a tab, newest first, with
   search, account and status filters, totals, and the outstanding amount.
   Change a check's status (Issued / Cleared / Void) right in the table.
@@ -43,13 +59,25 @@ app, on desktop and mobile.
    *Add beta plugin* → `Azurehawke/obsidian-printmechecks`.
 2. **Settings → Print Me Checks → Register file:** pick your register `.xlsx`
    (the one the desktop app writes to), or create a new one there.
-3. Open the register from the ribbon (bank icon) or the command
-   *Open check register*.
+3. Import your accounts from the desktop app, or add them under
+   **Accounts → New** in the check editor.
+4. Write checks with the pen icon (*Write a check*); see the register with the
+   bank icon (*Open check register*).
 
-## Privacy
+## Accounts and privacy
+
+Printing needs your full account and routing numbers. By default the plugin
+keeps them **on this device only** (Obsidian's local storage, not in the
+vault), so they never sync. **Settings → Where to keep bank accounts → In the
+vault** syncs them to your other devices with the vault instead.
+
+To bring accounts over from the desktop app: there, **Accounts → Export…**;
+here, **Accounts → Import…** (or Settings → Import). Font and alignment
+settings come along. The export file contains full account numbers, so delete
+it after importing.
 
 The register file never contains full account or routing numbers, only the
-last 4 digits. The plugin doesn't store any account numbers.
+last 4 digits.
 
 ## Register file format
 

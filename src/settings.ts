@@ -1,14 +1,24 @@
-import { AbstractInputSuggest, App, Notice, PluginSettingTab, Setting, TFile } from 'obsidian'
+import { AbstractInputSuggest, App, Notice, Platform, PluginSettingTab, Setting, TFile } from 'obsidian'
 import type PrintMeChecksPlugin from './main'
+import { Account, LayoutSettings, DEFAULT_LAYOUT } from './check/model'
+import type { AccountStorage } from './accounts'
 
 export interface Settings {
   registerPath: string
   lastAccountKey: string
+  accountStorage: AccountStorage
+  vaultAccounts: Account[] // only used when accountStorage is 'vault'
+  layout: LayoutSettings
+  pdfFolder: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   registerPath: '',
-  lastAccountKey: ''
+  lastAccountKey: '',
+  accountStorage: 'device',
+  vaultAccounts: [],
+  layout: { ...DEFAULT_LAYOUT },
+  pdfFolder: 'Checks'
 }
 
 class XlsxSuggest extends AbstractInputSuggest<TFile> {
@@ -81,6 +91,35 @@ export class SettingsTab extends PluginSettingTab {
         } catch (e) {
           new Notice('Could not create the register: ' + (e as Error).message)
         }
+      }))
+
+    c.createEl('h3', { text: 'Accounts' })
+    new Setting(c)
+      .setName('Where to keep bank accounts')
+      .setDesc('Accounts include full account and routing numbers (needed to print). "This device only" keeps them out of the vault, so they never sync; you add or import them on each computer. "In the vault" syncs them to your other devices with the vault.')
+      .addDropdown(d => d
+        .addOption('device', 'This device only')
+        .addOption('vault', 'In the vault (syncs)')
+        .setValue(this.plugin.settings.accountStorage)
+        .onChange(async v => {
+          await this.plugin.accounts.setStorage(v as AccountStorage)
+          new Notice(v === 'vault' ? 'Accounts are now saved in the vault.' : 'Accounts are now saved on this device only.')
+          this.display()
+        }))
+    const n = this.plugin.accounts.accounts.length
+    new Setting(c)
+      .setName('Import / export')
+      .setDesc(`${n} account${n === 1 ? '' : 's'} saved. Import the file exported from the desktop app (Accounts → Export) to bring over your accounts and printer alignment.`)
+      .addButton(b => b.setButtonText('Import…').onClick(() => this.plugin.importAccountsFromFile()))
+      .addButton(b => b.setButtonText('Export…').setDisabled(!Platform.isDesktopApp || !n).onClick(() => this.plugin.exportAccountsToFile()))
+
+    c.createEl('h3', { text: 'PDFs' })
+    new Setting(c)
+      .setName('PDF folder')
+      .setDesc('Where "Save PDF to vault" puts check PDFs.')
+      .addText(t => t.setPlaceholder('Checks').setValue(this.plugin.settings.pdfFolder).onChange(async v => {
+        this.plugin.settings.pdfFolder = v.trim() || 'Checks'
+        await this.plugin.saveSettings()
       }))
 
     c.createEl('h3', { text: 'Embedding in notes' })

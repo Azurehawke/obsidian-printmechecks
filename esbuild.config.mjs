@@ -14,7 +14,9 @@ const context = await esbuild.context({
   sourcemap: prod ? false : 'inline',
   treeShaking: true,
   minify: prod,
-  outfile: 'main.js'
+  outfile: 'main.js',
+  // Fonts and the check background are embedded in main.js
+  loader: { '.ttf': 'dataurl', '.png': 'dataurl' }
 })
 
 if (prod) {

@@ -39,7 +39,8 @@ export class RegisterView extends ItemView {
     title.createEl('h3', { text: 'Check register' })
     if (store.file) title.createSpan({ cls: 'pmc-file', text: store.file.path })
     const actions = head.createDiv('pmc-actions')
-    this.button(actions, 'plus', 'Record check', () => new RecordCheckModal(this.app, this.plugin).open(), true)
+    this.button(actions, 'file-pen-line', 'Write check', () => this.plugin.openEditor(), true)
+    this.button(actions, 'plus', 'Record check', () => new RecordCheckModal(this.app, this.plugin).open())
     this.button(actions, 'refresh-cw', 'Reload', () => store.reload())
     if (store.file) this.button(actions, 'table', 'Open file', () => this.app.workspace.getLeaf('tab').openFile(store.file!))
 
@@ -123,7 +124,11 @@ export class RegisterView extends ItemView {
         }
       }
       row.createEl('td', { text: accountName(e), cls: 'pmc-muted' })
-      const del = row.createEl('td').createEl('button', { cls: 'clickable-icon pmc-del', attr: { 'aria-label': 'Delete' } })
+      const actions = row.createEl('td', { cls: 'pmc-row-actions' })
+      const open = actions.createEl('button', { cls: 'clickable-icon', attr: { 'aria-label': 'Open in the check editor' } })
+      setIcon(open, 'file-pen-line')
+      open.onclick = () => this.plugin.openCheckFromEntry(e)
+      const del = actions.createEl('button', { cls: 'clickable-icon pmc-del', attr: { 'aria-label': 'Delete' } })
       setIcon(del, 'trash-2')
       del.onclick = () => new ConfirmModal(this.app,
         `Delete check #${e.checkNumber} to ${e.payTo || '(no payee)'}?`,
