@@ -22,5 +22,5 @@ export const FIELDS: Record<string, FieldDef> = {
   memoLabel: { label: 'Memo line', top: 390, left: 60 },
   memo: { label: 'Memo', top: 384, left: 120 },
   signatureLine: { label: 'Signature line', top: 390, left: 750 },
-  micr: { label: 'MICR line (routing / account / check #)', top: 420, left: 80 }
+  micr: { label: 'MICR line (routing / account / check #)', top: 340, left: 80 }
 }
