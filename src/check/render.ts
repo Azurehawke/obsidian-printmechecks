@@ -83,6 +83,18 @@ export function checkHtml (account: Account, check: CheckData, layout: LayoutSet
     fld('signatureLine', 'pmc-signature', '<span class="pmc-sig-line"></span>') +
     fld('micr', 'pmc-banking',
       `<span>a${esc(account.routingNumber)}a </span><span>${esc(account.accountNumber)}c</span><span class="pmc-micr-number">${esc(micrCheckNumber(check.checkNumber))}</span>`) +
+    (layout.showStub ? stubHtml(check) : '') +
+    '</div>'
+}
+
+// Stub lines below the check, starting just under the first perforation
+// (canvas px; the check itself is 480 px tall).
+const STUB_TOP = 530
+function stubHtml (check: CheckData) {
+  return `<div class="pmc-stub" style="position:absolute;top:${STUB_TOP}px;left:60px;white-space:nowrap;line-height:1.6;">` +
+    `<div>Check No. ${esc(check.checkNumber)} &nbsp;&nbsp;&nbsp; Date: ${esc(check.date)}</div>` +
+    `<div>Pay to: ${esc(check.payTo)} &nbsp;&nbsp;&nbsp; Amount: ${esc(formatMoney(check.amount))}</div>` +
+    `<div>Memo: ${esc(check.memo)}</div>` +
     '</div>'
 }
 

@@ -250,6 +250,9 @@ export class CheckEditorView extends ItemView {
       this.ribbonButton(show, 'image', 'Background', () => this.setLayout({ showBackground: !L.showBackground }), { on: L.showBackground })
       this.ribbonButton(show, 'scan', 'Outlines', () => this.setLayout({ showOutlines: !L.showOutlines }), { on: L.showOutlines })
 
+      const pr = this.group(body, 'Print')
+      this.ribbonButton(pr, 'receipt', 'Check stub', () => this.setLayout({ showStub: !L.showStub }), { on: L.showStub })
+
       const rs = this.group(body, 'Reset')
       this.ribbonButton(rs, 'rotate-ccw', 'Reset\nLayout', () => new ConfirmModal(this.app, 'Reset layout?',
         'Put every field back in its default position and clear the whole-check shift.', 'Reset',

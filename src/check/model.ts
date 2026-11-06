@@ -34,6 +34,7 @@ export interface LayoutSettings {
   fieldOffsets: Record<string, FieldOffset>
   showBackground: boolean
   showOutlines: boolean
+  showStub: boolean // print a check stub below the check
   zoom: number | 'fit'
 }
 
@@ -46,6 +47,7 @@ export const DEFAULT_LAYOUT: LayoutSettings = {
   fieldOffsets: {},
   showBackground: true,
   showOutlines: false,
+  showStub: true,
   zoom: 'fit'
 }
 
