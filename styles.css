@@ -1,0 +1,80 @@
+/* Print Me Checks: register view, embeds and modal.
+   Uses Obsidian's theme variables so it fits light/dark and custom themes. */
+
+.pmc-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-3);
+  padding: var(--size-4-4);
+}
+
+.pmc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+}
+.pmc-title h3 { margin: 0; }
+.pmc-file { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.pmc-actions { display: flex; flex-wrap: wrap; gap: var(--size-4-2); }
+.pmc-actions button { display: inline-flex; align-items: center; gap: var(--size-2-2); }
+.pmc-btn-icon { display: inline-flex; }
+.pmc-btn-icon svg { width: var(--icon-s); height: var(--icon-s); }
+
+.pmc-filters { display: flex; flex-wrap: wrap; gap: var(--size-4-2); }
+.pmc-filters input[type="search"] { flex: 1 1 220px; min-width: 160px; }
+
+.pmc-summary { font-size: var(--font-ui-small); margin-bottom: var(--size-4-2); }
+.pmc-muted { color: var(--text-muted); }
+.pmc-empty { color: var(--text-muted); padding: var(--size-4-6) 0; text-align: center; }
+.pmc-error {
+  color: var(--text-error);
+  background: rgba(var(--color-red-rgb), 0.08);
+  border: 1px solid rgba(var(--color-red-rgb), 0.3);
+  border-radius: var(--radius-s);
+  padding: var(--size-4-2) var(--size-4-3);
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-3);
+  flex-wrap: wrap;
+}
+
+.pmc-table-wrap { overflow-x: auto; }
+.pmc-table { width: 100%; border-collapse: collapse; font-size: var(--font-ui-small); }
+.pmc-table th, .pmc-table td {
+  padding: var(--size-2-2) var(--size-4-2);
+  border-bottom: 1px solid var(--background-modifier-border);
+  text-align: left;
+  vertical-align: middle;
+}
+.pmc-table th { color: var(--text-muted); font-weight: var(--font-semibold); white-space: nowrap; }
+.pmc-table tfoot td { font-weight: var(--font-semibold); border-bottom: none; }
+.pmc-table .pmc-num { text-align: right; }
+.pmc-mono { font-family: var(--font-monospace); white-space: nowrap; }
+.pmc-memo { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pmc-table select { font-size: var(--font-ui-smaller); padding-top: 0; padding-bottom: 0; height: auto; }
+.pmc-table tr.pmc-void .pmc-payee,
+.pmc-table tr.pmc-void .pmc-amt { text-decoration: line-through; color: var(--text-faint); }
+.pmc-del { color: var(--text-faint); }
+.pmc-del:hover { color: var(--text-error); }
+
+.pmc-status-issued { color: var(--text-normal); }
+.pmc-status-cleared { color: var(--color-green); }
+.pmc-status-void { color: var(--color-red); }
+.pmc-pill {
+  font-size: var(--font-ui-smaller);
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+.pmc-embed { margin: var(--size-4-2) 0; }
+.pmc-embed .pmc-table { font-size: var(--font-text-size); }
+
+.pmc-new-account {
+  border-left: 2px solid var(--interactive-accent);
+  padding-left: var(--size-4-3);
+  margin-bottom: var(--size-4-2);
+}
+.pmc-settings-status { margin: 0 0 var(--size-4-4); color: var(--text-muted); font-size: var(--font-ui-small); }

@@ -1,0 +1,41 @@
+name: Release plugin
+
+# On every push to main, if manifest.json has a version with no GitHub
+# release yet, build and publish a release tagged with that version
+# (Obsidian/BRAT convention: tag = version, no "v"). BRAT installs from
+# these releases. To ship: bump "version" in manifest.json (and package.json,
+# versions.json) and push.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Publish release if the version is new
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(node -p "require('./manifest.json').version")
+          if gh release view "$version" >/dev/null 2>&1; then
+            echo "Release $version already exists; bump the version in manifest.json to publish."
+            exit 0
+          fi
+          gh release create "$version" main.js manifest.json styles.css \
+            --target "$GITHUB_SHA" \
+            --title "$version" \
+            --generate-notes

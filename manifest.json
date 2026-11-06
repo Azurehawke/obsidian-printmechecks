@@ -1,0 +1,10 @@
+{
+  "id": "printmechecks",
+  "name": "Print Me Checks",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Check register for Print Me Checks: view and update your .xlsx register, record checks, and embed filtered tables in notes.",
+  "author": "Azurehawke",
+  "authorUrl": "https://github.com/Azurehawke",
+  "isDesktopOnly": false
+}
