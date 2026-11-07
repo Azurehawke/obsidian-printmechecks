@@ -35,6 +35,9 @@ export interface LayoutSettings {
   showBackground: boolean
   showOutlines: boolean
   showStub: boolean // print a check stub below the check
+  showGrid: boolean // millimetre grid over the check (screen only)
+  snap: boolean // snap dragged fields to the grid
+  gridMm: number // grid spacing, also the snap step
   zoom: number | 'fit'
 }
 
@@ -48,6 +51,9 @@ export const DEFAULT_LAYOUT: LayoutSettings = {
   showBackground: true,
   showOutlines: false,
   showStub: true,
+  showGrid: false,
+  snap: true,
+  gridMm: 1,
   zoom: 'fit'
 }
 

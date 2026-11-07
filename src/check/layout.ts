@@ -2,6 +2,7 @@
 // Identical to the desktop app. The printed page maps 1216 canvas px to
 // 8.5 inches.
 export const PX_PER_INCH = 1216 / 8.5
+export const PX_PER_MM = PX_PER_INCH / 25.4
 export const CHECK_WIDTH = 1200
 
 export interface FieldDef { label: string, top: number, left: number }

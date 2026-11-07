@@ -3,8 +3,10 @@
 // (click a field, arrow keys to move it), and a details panel.
 import { ItemView, Notice, WorkspaceLeaf, setIcon, Platform, DropdownComponent, Scope } from 'obsidian'
 import type PrintMeChecksPlugin from './main'
-import { Account, accountTitle, last4, blankAccount, DEFAULT_LAYOUT } from './check/model'
-import { FIELDS, CHECK_WIDTH } from './check/layout'
+import { Account, accountTitle, last4, blankAccount, DEFAULT_LAYOUT, FieldOffset } from './check/model'
+import { FIELDS, CHECK_WIDTH, PX_PER_MM } from './check/layout'
+
+const round1 = (v: number) => Math.round(v * 10) / 10
 import { checkHtml, amountInWords, formatMoney, CHECK_CSS } from './check/render'
 import { canPrint } from './check/print'
 import { AccountModal } from './accountModal'
@@ -34,7 +36,10 @@ function injectCheckCss () {
 
 export class CheckEditorView extends ItemView {
   private tab: Tab = 'Home'
-  private selected: string | null = null
+  // Every selected field; selected is the first (kept for single-field code)
+  private selection: string[] = []
+  private marqueeRect: { x0: number, y0: number, x1: number, y1: number } | null = null
+  private get selected (): string | null { return this.selection[0] ?? null }
   private tool: 'select' | 'pan' = 'select'
   private extraFonts: string[] = []
   private fitZoom = 1
@@ -52,7 +57,7 @@ export class CheckEditorView extends ItemView {
     // doesn't also act on it (and switch away from the tab).
     this.scope = new Scope(this.app.scope)
     this.scope.register([], 'Escape', () => {
-      if (!this.selected) return true
+      if (!this.selection.length) return true
       this.select(null)
       return false
     })
@@ -80,12 +85,8 @@ export class CheckEditorView extends ItemView {
     this.checkEl = this.zoomEl.createDiv('pmc-check-box')
     this.detailsEl = ws.createDiv('pmc-details')
 
-    // Click a field to select it (select tool); click empty space to clear
-    this.registerDomEvent(this.checkEl, 'click', (e: MouseEvent) => {
-      if (this.tool !== 'select') return
-      const f = (e.target as HTMLElement).closest('[data-field]') as HTMLElement | null
-      this.select(f ? f.dataset.field || null : null)
-    })
+    // Drag a field (or the selected group); drag empty check area to select a box
+    this.registerDomEvent(this.checkEl, 'mousedown', (e: MouseEvent) => this.onCheckDown(e))
     this.registerDomEvent(pad, 'click', (e: MouseEvent) => { if (e.target === pad) this.select(null) })
     this.registerDomEvent(this.scrollEl, 'mousedown', (e: MouseEvent) => this.startPan(e))
     this.registerDomEvent(root, 'keydown', (e: KeyboardEvent) => this.onKey(e))
@@ -121,7 +122,8 @@ export class CheckEditorView extends ItemView {
     this.checkEl.toggleClass('pmc-bg', this.layout.showBackground)
     this.checkEl.toggleClass('pmc-outlines', this.layout.showOutlines)
     this.checkEl.toggleClass('pmc-tool-select', this.tool === 'select')
-    this.checkEl.innerHTML = checkHtml(a, this.check, this.layout, { selected: this.selected })
+    this.checkEl.innerHTML = checkHtml(a, this.check, this.layout, { selected: this.selection }) +
+      this.gridHtml() + this.marqueeHtml()
     this.applyZoom()
   }
 
@@ -238,7 +240,7 @@ export class CheckEditorView extends ItemView {
       cell('arrow-left', -1, 0, 'Left'); cell('crosshair', 0, 0, 'Reset this field'); cell('arrow-right', 1, 0, 'Right')
       cell(null, 0, 0, ''); cell('arrow-down', 0, 1, 'Down'); cell(null, 0, 0, '')
       const info = m.createDiv('pmc-sel-info')
-      info.createEl('strong', { text: this.selected ? FIELDS[this.selected].label : 'No field selected' })
+      info.createEl('strong', { text: this.selection.length > 1 ? `${this.selection.length} fields selected` : (this.selected ? FIELDS[this.selected].label : 'No field selected') })
       info.createDiv({ text: this.selected ? 'Arrow keys move it; Shift+arrow 10×.' : 'Click a field on the check to move it.' })
 
       const sh = this.group(body, 'Shift Whole Check')
@@ -252,6 +254,22 @@ export class CheckEditorView extends ItemView {
 
       const pr = this.group(body, 'Print')
       this.ribbonButton(pr, 'receipt', 'Check stub', () => this.setLayout({ showStub: !L.showStub }), { on: L.showStub })
+
+      const gr = this.group(body, 'Grid & snap')
+      this.ribbonButton(gr, 'grid', 'Grid', () => this.setLayout({ showGrid: !L.showGrid }), { on: L.showGrid })
+      this.ribbonButton(gr, 'magnet', 'Snap', () => this.setLayout({ snap: !L.snap }), { on: L.snap })
+      this.ribbonButton(gr, 'ruler', `${L.gridMm} mm`, () => this.cycleGrid(), { title: 'Grid spacing (click to change)' })
+
+      const multi = this.selection.length >= 2
+      const al = this.group(body, 'Align (2+ fields)')
+      this.ribbonButton(al, 'align-start-vertical', 'Left', () => this.align('left'), { disabled: !multi })
+      this.ribbonButton(al, 'align-center-vertical', 'Centre', () => this.align('hcenter'), { disabled: !multi })
+      this.ribbonButton(al, 'align-end-vertical', 'Right', () => this.align('right'), { disabled: !multi })
+      this.ribbonButton(al, 'align-start-horizontal', 'Top', () => this.align('top'), { disabled: !multi })
+      this.ribbonButton(al, 'align-center-horizontal', 'Middle', () => this.align('vcenter'), { disabled: !multi })
+      this.ribbonButton(al, 'align-end-horizontal', 'Bottom', () => this.align('bottom'), { disabled: !multi })
+      this.ribbonButton(al, 'move-horizontal', 'Space H', () => this.distribute('h'), { disabled: this.selection.length < 3, title: 'Space evenly horizontally (3+ fields)' })
+      this.ribbonButton(al, 'move-vertical', 'Space V', () => this.distribute('v'), { disabled: this.selection.length < 3, title: 'Space evenly vertically (3+ fields)' })
 
       const rs = this.group(body, 'Reset')
       this.ribbonButton(rs, 'rotate-ccw', 'Reset\nLayout', () => new ConfirmModal(this.app, 'Reset layout?',
@@ -386,10 +404,15 @@ export class CheckEditorView extends ItemView {
     setIcon(nc.createSpan('pmc-btn-icon'), 'file-plus'); nc.appendText(' New Check')
     nc.onclick = () => this.newCheck()
 
-    if (this.selected) {
+    if (this.selection.length > 1) {
+      const s5 = d.createDiv('pmc-sect-box pmc-selected-box')
+      s5.createEl('h6', { text: `${this.selection.length} fields selected` })
+      s5.createDiv({ cls: 'pmc-muted', text: 'Align and space them from the Layout tab.' })
+    }
+    if (this.selection.length === 1) {
       const s4 = d.createDiv('pmc-sect-box pmc-selected-box')
       s4.createEl('h6', { text: 'Selected field' })
-      s4.createEl('strong', { text: FIELDS[this.selected].label })
+      s4.createEl('strong', { text: FIELDS[this.selection[0]].label })
       s4.createDiv({ cls: 'pmc-muted', text: 'Arrow keys move it 1px, Shift+arrow 10px. Esc deselects.' })
       const r = s4.createEl('a', { text: 'Reset this field', href: '#' })
       r.onclick = (e) => { e.preventDefault(); this.resetField() }
@@ -415,12 +438,12 @@ export class CheckEditorView extends ItemView {
 
   private setTool (t: 'select' | 'pan') {
     this.tool = t
-    if (t === 'pan') this.selected = null
+    if (t === 'pan') this.selection = []
     this.renderAll()
   }
 
   private select (key: string | null) {
-    this.selected = key
+    this.selection = key ? [key] : []
     this.renderCheck()
     this.renderDetails()
     if (this.tab === 'Layout') this.renderRibbon()
@@ -428,20 +451,220 @@ export class CheckEditorView extends ItemView {
   }
 
   private nudge (dx: number, dy: number) {
-    if (!this.selected) return
+    if (!this.selection.length) return
     const offs = { ...this.layout.fieldOffsets }
-    const cur = offs[this.selected] || { x: 0, y: 0 }
-    offs[this.selected] = { x: cur.x + dx, y: cur.y + dy }
+    for (const k of this.selection) {
+      const cur = offs[k] || { x: 0, y: 0 }
+      offs[k] = { x: cur.x + dx, y: cur.y + dy }
+    }
     this.layout.fieldOffsets = offs
     this.plugin.saveSettings()
     this.renderCheck()
   }
 
   private resetField () {
-    if (!this.selected) return
+    if (!this.selection.length) return
     const offs = { ...this.layout.fieldOffsets }
-    delete offs[this.selected]
+    for (const k of this.selection) delete offs[k]
     this.setLayout({ fieldOffsets: offs })
+  }
+
+  // ---------- Selection, drag, grid, align ----------
+
+  private get scale () { return this.checkEl.getBoundingClientRect().width / CHECK_WIDTH }
+
+  private isAdditive (e: MouseEvent) { return e.shiftKey || e.ctrlKey || e.metaKey }
+
+  private afterSelection () {
+    this.renderCheck()
+    this.renderDetails()
+    if (this.tab === 'Layout') this.renderRibbon()
+  }
+
+  private onCheckDown (e: MouseEvent) {
+    if (this.tool !== 'select' || e.button !== 0) return
+    const f = (e.target as HTMLElement).closest('[data-field]') as HTMLElement | null
+    if (f?.dataset.field) this.startFieldDrag(f.dataset.field, e)
+    else this.startMarquee(e)
+  }
+
+  // Drag a field, or every selected field together. With snapping on, the
+  // field under the mouse lands on the grid and the rest keep their spacing.
+  private startFieldDrag (key: string, e: MouseEvent) {
+    e.preventDefault()
+    if (this.isAdditive(e)) {
+      this.selection = this.selection.includes(key) ? this.selection.filter(k => k !== key) : [...this.selection, key]
+      this.afterSelection()
+      return
+    }
+    if (!this.selection.includes(key)) this.selection = [key]
+    const group = [...this.selection]
+    const scale = this.scale
+    const sx = e.clientX
+    const sy = e.clientY
+    const anchor = FIELDS[key]
+    const aoff = this.layout.fieldOffsets[key] || { x: 0, y: 0 }
+    const aStart = { x: anchor.left + aoff.x, y: anchor.top + aoff.y }
+    const origin: Record<string, FieldOffset> = {}
+    for (const k of group) origin[k] = { ...(this.layout.fieldOffsets[k] || { x: 0, y: 0 }) }
+    let moved = false
+    const move = (ev: MouseEvent) => {
+      let dx = (ev.clientX - sx) / scale
+      let dy = (ev.clientY - sy) / scale
+      if (Math.abs(dx) + Math.abs(dy) > 2) moved = true
+      if (this.layout.snap) {
+        const step = this.layout.gridMm * PX_PER_MM
+        dx = Math.round((aStart.x + dx) / step) * step - aStart.x
+        dy = Math.round((aStart.y + dy) / step) * step - aStart.y
+      }
+      const next = { ...this.layout.fieldOffsets }
+      for (const k of group) next[k] = { x: round1(origin[k].x + dx), y: round1(origin[k].y + dy) }
+      this.layout.fieldOffsets = next
+      this.renderCheck()
+    }
+    const up = () => {
+      window.removeEventListener('mousemove', move)
+      window.removeEventListener('mouseup', up)
+      if (moved) this.plugin.saveSettings()
+      else if (group.length > 1) this.selection = [key]
+      this.afterSelection()
+    }
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseup', up)
+  }
+
+  // Drag on empty check area to select every field the box touches
+  private startMarquee (e: MouseEvent) {
+    e.preventDefault()
+    const rect = this.checkEl.getBoundingClientRect()
+    const scale = this.scale
+    const toCanvas = (x: number, y: number) => ({ x: (x - rect.left) / scale, y: (y - rect.top) / scale })
+    const start = toCanvas(e.clientX, e.clientY)
+    const additive = this.isAdditive(e)
+    const before = [...this.selection]
+    let moved = false
+    const move = (ev: MouseEvent) => {
+      const p = toCanvas(ev.clientX, ev.clientY)
+      if (!moved && Math.hypot(p.x - start.x, p.y - start.y) < 4) return
+      moved = true
+      const r = { x0: Math.min(start.x, p.x), y0: Math.min(start.y, p.y), x1: Math.max(start.x, p.x), y1: Math.max(start.y, p.y) }
+      this.marqueeRect = r
+      const hit = Array.from(this.checkEl.querySelectorAll<HTMLElement>('[data-field]')).filter(el => {
+        const f = el.getBoundingClientRect()
+        const l = (f.left - rect.left) / scale
+        const t = (f.top - rect.top) / scale
+        const rt = (f.right - rect.left) / scale
+        const b = (f.bottom - rect.top) / scale
+        return l < r.x1 && rt > r.x0 && t < r.y1 && b > r.y0
+      }).map(el => el.dataset.field as string)
+      this.selection = additive ? [...new Set([...before, ...hit])] : hit
+      this.renderCheck()
+    }
+    const up = () => {
+      window.removeEventListener('mousemove', move)
+      window.removeEventListener('mouseup', up)
+      this.marqueeRect = null
+      if (!moved && !additive) this.selection = []
+      this.afterSelection()
+    }
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseup', up)
+  }
+
+  private marqueeHtml () {
+    const r = this.marqueeRect
+    if (!r) return '<div class="pmc-marquee" style="display:none"></div>'
+    return `<div class="pmc-marquee" style="left:${r.x0}px;top:${r.y0}px;width:${r.x1 - r.x0}px;height:${r.y1 - r.y0}px"></div>`
+  }
+
+  // Millimetre grid with labels every 10 mm (screen only, never printed)
+  private gridHtml () {
+    if (!this.layout.showGrid) return ''
+    const step = this.layout.gridMm * PX_PER_MM
+    let labels = ''
+    for (let mm = 0; mm * PX_PER_MM < CHECK_WIDTH; mm += 10) {
+      labels += `<span class="pmc-mm" style="left:${mm * PX_PER_MM}px;top:0">${mm}</span>`
+    }
+    for (let mm = 10; mm * PX_PER_MM < 480; mm += 10) {
+      labels += `<span class="pmc-mm" style="top:${mm * PX_PER_MM}px;left:0">${mm}</span>`
+    }
+    return `<div class="pmc-grid" style="background-size:${step}px ${step}px">${labels}</div>`
+  }
+
+  // A field's box on the check in canvas px, measured from the rendered page
+  private measureField (key: string) {
+    const el = this.checkEl.querySelector<HTMLElement>(`[data-field="${key}"]`)
+    if (!el) return null
+    const scale = this.scale
+    const r = el.getBoundingClientRect()
+    const base = FIELDS[key]
+    const off = this.layout.fieldOffsets[key] || { x: 0, y: 0 }
+    return { key, l: base.left + off.x, t: base.top + off.y, w: r.width / scale, h: r.height / scale }
+  }
+
+  private measureSelection () {
+    return this.selection.map(k => this.measureField(k)).filter((m): m is NonNullable<ReturnType<typeof this.measureField>> => !!m)
+  }
+
+  // Absolute left/top edges (canvas px) for each field
+  private setEdges (moves: Record<string, { x?: number, y?: number }>) {
+    const next = { ...this.layout.fieldOffsets }
+    for (const [key, p] of Object.entries(moves)) {
+      const base = FIELDS[key]
+      const cur = next[key] || { x: 0, y: 0 }
+      next[key] = {
+        x: p.x !== undefined ? Math.round(p.x - base.left) : cur.x,
+        y: p.y !== undefined ? Math.round(p.y - base.top) : cur.y
+      }
+    }
+    this.layout.fieldOffsets = next
+    this.plugin.saveSettings()
+    this.renderCheck()
+  }
+
+  private align (mode: 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom') {
+    const items = this.measureSelection()
+    if (items.length < 2) return
+    const minL = Math.min(...items.map(i => i.l))
+    const maxR = Math.max(...items.map(i => i.l + i.w))
+    const minT = Math.min(...items.map(i => i.t))
+    const maxB = Math.max(...items.map(i => i.t + i.h))
+    const moves: Record<string, { x?: number, y?: number }> = {}
+    for (const i of items) {
+      if (mode === 'left') moves[i.key] = { x: minL }
+      else if (mode === 'right') moves[i.key] = { x: maxR - i.w }
+      else if (mode === 'hcenter') moves[i.key] = { x: (minL + maxR) / 2 - i.w / 2 }
+      else if (mode === 'top') moves[i.key] = { y: minT }
+      else if (mode === 'bottom') moves[i.key] = { y: maxB - i.h }
+      else moves[i.key] = { y: (minT + maxB) / 2 - i.h / 2 }
+    }
+    this.setEdges(moves)
+  }
+
+  // Space the selected fields evenly, keeping the outermost two in place
+  private distribute (axis: 'h' | 'v') {
+    const horiz = axis === 'h'
+    const pos = (i: { l: number, t: number }) => (horiz ? i.l : i.t)
+    const size = (i: { w: number, h: number }) => (horiz ? i.w : i.h)
+    const items = this.measureSelection().sort((a, b) => pos(a) - pos(b))
+    if (items.length < 3) return
+    const start = pos(items[0])
+    const end = Math.max(...items.map(i => pos(i) + size(i)))
+    const total = items.reduce((sum, i) => sum + size(i), 0)
+    const gap = (end - start - total) / (items.length - 1)
+    const moves: Record<string, { x?: number, y?: number }> = {}
+    let cursor = start
+    for (const i of items) {
+      moves[i.key] = horiz ? { x: cursor } : { y: cursor }
+      cursor += size(i) + gap
+    }
+    this.setEdges(moves)
+  }
+
+  private cycleGrid () {
+    const steps = [0.5, 1, 2.5, 5]
+    const i = steps.indexOf(this.layout.gridMm)
+    this.setLayout({ gridMm: steps[(i + 1) % steps.length] })
   }
 
   private bumpFont (d: number) {
@@ -484,10 +707,16 @@ export class CheckEditorView extends ItemView {
   private onKey (e: KeyboardEvent) {
     const t = e.target as HTMLElement
     const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a' && !typing) {
+      e.preventDefault()
+      this.selection = Object.keys(FIELDS)
+      this.afterSelection()
+      return
+    }
     if (typing || e.ctrlKey || e.metaKey || e.altKey) return
     const step = e.shiftKey ? 10 : 1
     const moves: Record<string, [number, number]> = { ArrowUp: [0, -step], ArrowDown: [0, step], ArrowLeft: [-step, 0], ArrowRight: [step, 0] }
-    if (this.selected && moves[e.key]) {
+    if (this.selection.length && moves[e.key]) {
       e.preventDefault()
       this.nudge(...moves[e.key])
     } else if (e.key.toLowerCase() === 'v') {

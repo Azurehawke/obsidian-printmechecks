@@ -40,7 +40,7 @@ function capitalizeWords (s: string) {
 }
 
 export interface RenderOptions {
-  selected?: string | null
+  selected?: string[]
   forPrint?: boolean
 }
 
@@ -49,7 +49,7 @@ export function checkHtml (account: Account, check: CheckData, layout: LayoutSet
   const fld = (key: string, cls: string, inner: string) => {
     const base = FIELDS[key]
     const off = layout.fieldOffsets[key] || { x: 0, y: 0 }
-    const sel = opts.selected === key ? ' selected' : ''
+    const sel = opts.selected?.includes(key) ? ' selected' : ''
     const title = opts.forPrint ? '' : ` title="${esc(base.label)}"`
     return `<div class="pmc-fld ${cls}${sel}" data-field="${key}"${title} style="position:absolute;top:${base.top + off.y}px;left:${base.left + off.x}px">${inner}</div>`
   }
