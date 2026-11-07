@@ -10,6 +10,7 @@ import { AccountStore, parseExport } from './accounts'
 import { Account, CheckData, DEFAULT_LAYOUT, accountTitle, last4 } from './check/model'
 import { Entry, compareCheckNumbers, nextCheckNumber, todayString } from './register'
 import { canPrint, chooseSavePath, writeFile } from './check/print'
+import { layoutFileData, parseLayoutFile } from './check/layoutFile'
 
 export default class PrintMeChecksPlugin extends Plugin {
   settings: Settings = { ...DEFAULT_SETTINGS }
@@ -46,6 +47,8 @@ export default class PrintMeChecksPlugin extends Plugin {
     })
     this.addCommand({ id: 'save-check-to-register', name: 'Save current check to register', callback: () => this.saveCheckToRegister() })
     this.addCommand({ id: 'import-accounts', name: 'Import accounts from the desktop app', callback: () => this.importAccountsFromFile() })
+    this.addCommand({ id: 'export-layout', name: 'Export check layout to a file', callback: () => this.exportLayoutToFile() })
+    this.addCommand({ id: 'import-layout', name: 'Import check layout from a file', callback: () => this.importLayoutFromFile() })
 
     // Keep in step with the register file: edits from the desktop app, Excel, sync…
     const isRegister = (f: TAbstractFile) => f instanceof TFile && f.path === this.store.path
@@ -194,6 +197,35 @@ export default class PrintMeChecksPlugin extends Plugin {
     const json = JSON.stringify(this.accounts.exportData(this.settings.layout), null, 2)
     writeFile(p, new TextEncoder().encode(json))
     new Notice(`Exported ${this.accounts.accounts.length} account(s). The file contains full account numbers; keep it safe.`)
+  }
+
+  // ---------- Layout files ----------
+
+  importLayoutFromFile () {
+    const input = createEl('input', { type: 'file', attr: { accept: '.json,application/json' } })
+    input.onchange = async () => {
+      const f = input.files?.[0]
+      if (!f) return
+      try {
+        const clean = parseLayoutFile(await f.text())
+        this.settings.layout = { ...this.settings.layout, ...clean, zoom: this.settings.layout.zoom }
+        await this.saveSettings()
+        this.events.trigger('check')
+        new Notice(`Imported layout: ${Object.keys(clean).length} settings updated.`)
+      } catch (e) {
+        new Notice('Import failed: ' + (e as Error).message)
+      }
+    }
+    input.click()
+  }
+
+  async exportLayoutToFile () {
+    if (!Platform.isDesktopApp) return new Notice('Export needs Obsidian on a computer.')
+    const p = await chooseSavePath('Print Me Checks layout.json')
+    if (!p) return
+    const json = JSON.stringify(layoutFileData(this.settings.layout), null, 2)
+    writeFile(p, new TextEncoder().encode(json))
+    new Notice('Exported the check layout.')
   }
 
   // ---------- Views / settings ----------

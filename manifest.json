@@ -1,7 +1,7 @@
 {
   "id": "printmechecks",
   "name": "Print Me Checks",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "minAppVersion": "1.5.0",
   "description": "Check register for Print Me Checks: view and update your .xlsx register, record checks, and embed filtered tables in notes.",
   "author": "Azurehawke",

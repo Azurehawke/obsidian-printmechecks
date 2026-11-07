@@ -271,6 +271,10 @@ export class CheckEditorView extends ItemView {
       this.ribbonButton(al, 'move-horizontal', 'Space H', () => this.distribute('h'), { disabled: this.selection.length < 3, title: 'Space evenly horizontally (3+ fields)' })
       this.ribbonButton(al, 'move-vertical', 'Space V', () => this.distribute('v'), { disabled: this.selection.length < 3, title: 'Space evenly vertically (3+ fields)' })
 
+      const lf = this.group(body, 'Layout file')
+      this.ribbonButton(lf, 'download', 'Export\nLayout', () => this.plugin.exportLayoutToFile(), { title: 'Save this check layout to a file (opens in the desktop app too)' })
+      this.ribbonButton(lf, 'upload', 'Import\nLayout', () => this.plugin.importLayoutFromFile(), { title: 'Load a check layout from a file' })
+
       const rs = this.group(body, 'Reset')
       this.ribbonButton(rs, 'rotate-ccw', 'Reset\nLayout', () => new ConfirmModal(this.app, 'Reset layout?',
         'Put every field back in its default position and clear the whole-check shift.', 'Reset',
